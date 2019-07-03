@@ -54,7 +54,7 @@
       "value": false
     },
     "existingdiagnosticsStorageAccountName": {
-      "value": "capgeminidemo"
+      "value": "ravitest01"
     },
     "existingdiagnosticsStorageResourceGroup": {
       "value": "HUBVNET"
