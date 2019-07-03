@@ -1,0 +1,560 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+
+        "sapSystemCount": {
+            "type": "int",
+            "defaultValue": 1,
+            "metadata": {
+                "description": "The number of SAP systems that will use this file server"
+            }
+        },
+        "serversize": {
+            "type": "string",
+            "metadata": {
+                "description": "vm size"
+            }
+        },
+        "zonenumber": {
+            "type": "int",
+            "metadata": {
+                "description": "Zone in which to put VM"
+            }
+        },
+        "storagetype": {
+            "type": "string",
+            "metadata": {
+                "description": "type of storage"
+                
+            },
+            "allowedValues": [
+                "Standard_LRS",
+                "StandardSSD_LRS",
+                "Premium_LRS"
+            ]
+        },
+        "diskpersystem": {
+            "type": "int",
+            "metadata": {
+                "description": "number of data disk on each VM"
+            }
+        },
+        "servercount": {
+            "type": "int",
+            "metadata": {
+                "description": "number of VMs"
+            }
+        },
+        "serverdisksize": {
+            "type": "int",
+            "metadata": {
+                "description": "size of each data disk"
+            }
+        },
+        "LBrequired": {
+            "type": "bool",
+            "metadata": {
+                "description": "size of each data disk"
+            }
+        },
+        "osType": {
+            "type": "string",
+            "metadata": {
+                "description": "The type of the operating system you want to deploy."
+            }
+        },
+
+        "adminUsername": {
+            "type": "string",
+            "metadata": {
+                "description": "Username for the Virtual Machine."
+            }
+        },
+        "authenticationType": {
+            "type": "string",
+            "defaultValue": "password",
+            "allowedValues": [
+                "password",
+                "sshPublicKey"
+            ],
+            "metadata": {
+                "description": "Type of authentication to use on the Virtual Machine."
+            }
+        },
+        "companycode": {
+            "type": "string",
+            "allowedValues": [
+                "dfgp",
+                "dfhk",
+                "wehk",
+                "jahk",
+                "olhk",
+                "tshk",
+                "sehk",
+                "mnhk",
+                "gnhk",
+                "ikhk",
+                "dfmo",
+                "semo",
+                "mnmo",
+                "dfcn",
+                "sesz",
+                "segz",
+                "mngz",
+                "mncn",
+                "yhcn",
+                "dfph",
+                "dfsc",
+                "rsph",
+                "swph",
+                "wcph",
+                "rpph",
+                "dftw",
+                "wetw",
+                "jatw",
+                "iktw",
+                "dfsg",
+                "gisg",
+                "cssg",
+                "sesg",
+                "gusg",
+                "dfmy",
+                "gimy",
+                "csmy",
+                "gumy",
+                "ccmy",
+                "gemy",
+                "dfid",
+                "giid",
+                "heid",
+                "guid",
+                "smid",
+                "ikid",
+                "dfvn",
+                "givn",
+                "guvn",
+                "dfbn",
+                "gibn",
+                "gubn",
+                "dfkh",
+                "lukh",
+                "gukh"
+            ],
+            "metadata": {
+                "description": "Company Code suffix for VM"
+            }
+        },
+        "environmentcode": {
+            "type": "string",
+            "allowedValues": [
+                "pd",
+                "np"
+            ],
+            "metadata": {
+                "description": "environemnt code for vm. pd for production and np for non production"
+            }
+        },
+        "typeCode": {
+            "type": "string",
+            "allowedValues": [
+                "in",
+                "er",
+                "mc",
+                "wh"
+            ],
+            "metadata": {
+                "description": "type code for VM. Infrastricture - in, E-commerce - er, MDS - mc, WMS - wh"
+            }
+        },
+        "appname": {
+            "type": "string",
+            "metadata": {
+                "description": "application name"
+            }
+        },
+        "avsetrequired": {
+            "type": "bool",
+            "metadata": {
+                "description": "provide true or false if av set is required or not"
+            }
+        },
+        "adminPasswordOrKey": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Password or ssh key for the Virtual Machine."
+            }
+        },
+        "subnetId": {
+            "type": "string",
+            "metadata": {
+                "description": "The id of the subnet you want to use."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "existingdiagnosticsStorageAccountName": {
+            "type": "string",
+            "metadata": {
+              "description": "The name of an existing storage account to which diagnostics data will be transferred."
+            }
+          },
+          "existingdiagnosticsStorageResourceGroup": {
+            "type": "string",
+            "metadata": {
+              "description": "The resource group for the storage account specified in existingdiagnosticsStorageAccountName"
+            }
+          }
+
+
+    },
+    "variables": {
+        "images": {
+
+          "windows": {
+            "sku": "2012-R2-Datacenter",
+            "offer": "WindowsServer",
+            "publisher": "MicrosoftWindowsServer",
+            "version": "latest",
+            "OSFamily": "Datacenter",
+            "OSType": "Windows"
+          }
+
+
+        },
+        "internalOSType": "[variables('images')[parameters('osType')].OSType]",
+        "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+                "publicKeys": [
+                    {
+                        "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                        "keyData": "[parameters('adminPasswordOrKey')]"
+                    }
+                ]
+            }
+        },
+
+        "loadBalancingRulesLinux2049T": {
+            "copy": [
+                {
+                    "name": "loadBalancingRules",
+                    "count": "[parameters('sapSystemCount')]",
+                    "input": {
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations/', variables('lbprefix'), concat('frontend-ipcfg-int', '-', copyIndex('loadBalancingRules')))]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools/', variables('lbprefix'), concat('backend-pool-nfs', '-', copyIndex('loadBalancingRules')))]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes/', variables('lbprefix'), concat('healthprobe', '-', copyIndex('loadBalancingRules')))]"
+                            },
+                            "protocol": "Tcp",
+                            "frontendPort": 2049,
+                            "backendPort": 2049,
+                            "enableFloatingIP": true,
+                            "idleTimeoutInMinutes": 30
+                        },
+                        "name": "[concat('lbProbeFile2049T', '-', copyIndex('loadBalancingRules'))]"
+                    }
+                }
+            ]
+        },
+        "loadBalancingRulesLinux2049U": {
+            "copy": [
+                {
+                    "name": "loadBalancingRules",
+                    "count": "[parameters('sapSystemCount')]",
+                    "input": {
+                        "properties": {
+                            "frontendIPConfiguration": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIpConfigurations/', variables('lbprefix'), concat('frontend-ipcfg-int', '-', copyIndex('loadBalancingRules')))]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools/', variables('lbprefix'), concat('backend-pool-nfs', '-', copyIndex('loadBalancingRules')))]"
+                            },
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/loadBalancers/probes/', variables('lbprefix'), concat('healthprobe', '-', copyIndex('loadBalancingRules')))]"
+                            },
+                            "protocol": "Udp",
+                            "frontendPort": 2049,
+                            "backendPort": 2049,
+                            "enableFloatingIP": true,
+                            "idleTimeoutInMinutes": 30
+                        },
+                        "name": "[concat('lbProbeFile2049U', '-', copyIndex('loadBalancingRules'))]"
+                    }
+                }
+            ]
+        },
+        "osFamilies": {
+
+            "Datacenter": {
+                "serversize": "[parameters('serversize')]",
+                "useFastNetwork": false,
+                "diskPerSystem": "[parameters('diskpersystem')]",
+                "servercount": "[parameters('servercount')]",
+                "serverdisksSize": "[parameters('serverdisksize')]",
+                "needsLB": "[parameters('LBrequired')]",
+                "loadBalancingRules": "[concat(variables('loadBalancingRulesLinux2049T').loadBalancingRules, variables('loadBalancingRulesLinux2049U').loadBalancingRules)]"
+            }
+
+        },
+        
+        "fsvmCount": "[variables('osFamilies')[variables('images')[parameters('osType')].OSFamily].servercount]",
+        "fsvmSize": "[variables('osFamilies')[variables('images')[parameters('osType')].OSFamily].serversize]",
+        "fsdiskSize": "[variables('osFamilies')[variables('images')[parameters('osType')].OSFamily].serverdisksSize]",
+        "fsvmDataDisks": "[mul(variables('osFamilies')[variables('images')[parameters('osType')].OSFamily].diskPerSystem, parameters('sapSystemCount'))]",
+        "needsLB": "[variables('osFamilies')[variables('images')[parameters('osType')].OSFamily].needsLB]",
+        "loadBalancingRules": "[variables('osFamilies')[variables('images')[parameters('osType')].OSFamily].loadBalancingRules]",
+        "useFastNetwork": "[variables('osFamilies')[variables('images')[parameters('osType')].OSFamily].useFastNetwork]",
+        "vmprefix": "[concat(parameters('companycode'), parameters('environmentcode'), '-', parameters('typecode'), '-', parameters('appname') )]",
+        "avsetprefix": "[concat('avset', '-sea-',  parameters('environmentcode'), parameters('appname') )]",
+        "lbprefix": "[concat('ilb', '-sea-',  parameters('environmentcode'), parameters('appname') )]",
+        "availabilitySet":{
+          "id":   "[resourceId('Microsoft.Compute/availabilitySets',variables('avsetprefix'))]"
+        },
+        "subscriptionName": "[subscription().displayName]",
+        "frontendIPConfigurations": {
+            "copy": [
+                {
+                    "name": "frontendIPConfigurations",
+                    "count": "[parameters('sapSystemCount')]",
+                    "input": {
+                        "properties": {
+                            "subnet": {
+                                "id": "[parameters('subnetId')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        },
+                        "name": "[concat('frontend-ipcfg-int', '-', copyIndex('frontendIPConfigurations'))]"
+                    }
+                }
+            ]
+        },
+        "backendAddressPools": {
+            "copy": [
+                {
+                    "name": "backendAddressPools",
+                    "count": "[parameters('sapSystemCount')]",
+                    "input": {
+                        "name": "[concat('backend-pool-nfs', '-', copyIndex('backendAddressPools'))]"
+                    }
+                }
+            ]
+        },
+        "probes": {
+            "copy": [
+                {
+                    "name": "probes",
+                    "count": "[parameters('sapSystemCount')]",
+                    "input": {
+                        "properties": {
+                            "protocol": "Tcp",
+                            "port": "[add(61000, copyIndex('probes'))]",
+                            "intervalInSeconds": 5,
+                            "numberOfProbes": 2
+                        },
+                        "name": "[concat('healthprobe', '-', copyIndex('probes'))]"
+                    }
+                }
+            ]
+        },
+        "nicBackAddressPools": {
+            "copy": [
+                {
+                    "name": "nicBackAddressPools",
+                    "count": "[parameters('sapSystemCount')]",
+                    "input": {
+                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools/', variables('lbprefix'), concat('backend-pool-nfs', '-', copyIndex('nicBackAddressPools')))]"
+                    }
+                }
+            ]
+        },
+        "accountid": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/',parameters('existingdiagnosticsStorageResourceGroup'), '/providers/','Microsoft.Storage/storageAccounts/', parameters('existingdiagnosticsStorageAccountName'))]",
+        "wadlogs": "<WadCfg> <DiagnosticMonitorConfiguration overallQuotaInMB=\"4096\" xmlns=\"http://schemas.microsoft.com/ServiceHosting/2010/10/DiagnosticsConfiguration\"> <DiagnosticInfrastructureLogs scheduledTransferLogLevelFilter=\"Error\"/> <WindowsEventLog scheduledTransferPeriod=\"PT1M\" > <DataSource name=\"Application!*[System[(Level = 1 or Level = 2)]]\" /> <DataSource name=\"Security!*[System[(Level = 1 or Level = 2)]]\" /> <DataSource name=\"System!*[System[(Level = 1 or Level = 2)]]\" /></WindowsEventLog>",
+        "wadperfcounters1": "<PerformanceCounters scheduledTransferPeriod=\"PT1M\"><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% Processor Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU utilization\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% Privileged Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU privileged time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% User Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU user time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor Information(_Total)\\Processor Frequency\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"CPU frequency\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\System\\Processes\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Processes\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Process(_Total)\\Thread Count\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Threads\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Process(_Total)\\Handle Count\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Handles\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\% Committed Bytes In Use\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Memory usage\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Available Bytes\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory available\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Committed Bytes\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory committed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Commit Limit\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory commit limit\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active time\" locale=\"en-us\"/></PerformanceCounterConfiguration>",
+        "wadperfcounters2": "<PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Read Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active read time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Write Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active write time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Transfers/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Reads/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk read operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Writes/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk write operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Read Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk read speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Write Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk write speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\LogicalDisk(_Total)\\% Free Space\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk free space (percentage)\" locale=\"en-us\"/></PerformanceCounterConfiguration></PerformanceCounters>",
+        "wadcfgxstart": "[concat(variables('wadlogs'), variables('wadperfcounters1'), variables('wadperfcounters2'), '<Metrics resourceId=\"')]",
+        "wadmetricsresourceid": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name , '/providers/', 'Microsoft.Compute/virtualMachines/')]",
+        "wadcfgxend": "\"><MetricAggregation scheduledTransferPeriod=\"PT1H\"/><MetricAggregation scheduledTransferPeriod=\"PT1M\"/></Metrics></DiagnosticMonitorConfiguration></WadCfg>"
+        
+    },
+    "resources": [
+
+
+        {
+            "type": "Microsoft.Compute/availabilitySets",
+            "name": "[variables('avsetprefix')]",
+            "apiVersion": "2017-03-30",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Aligned"
+            },
+            "condition": "[parameters('avsetrequired')]",
+            "properties": {
+                "platformFaultDomainCount": 3,
+                "platformUpdateDomainCount": 20
+            }
+        },
+        
+        {
+            "type": "Microsoft.Network/loadBalancers",
+            "name": "[variables('lbprefix')]",
+            "apiVersion": "2018-04-01",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+            ],
+            "condition": "[variables('needsLB')]",
+            "properties": {
+                "frontendIPConfigurations": "[variables('frontendIPConfigurations').frontendIPConfigurations]",
+                "backendAddressPools": "[variables('backendAddressPools').backendAddressPools]",
+                "loadBalancingRules": "[variables('loadBalancingRules')]",
+                "probes": "[variables('probes').probes]"
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[concat(variables('vmprefix'), '-nic0', copyIndex('nicLoop', 1))]",
+            "apiVersion": "2015-06-15",
+            "copy": {
+                "name": "nicLoop",
+                "count": "[variables('fsvmCount')]"
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Network/loadBalancers/', variables('lbprefix'))]"
+            ],
+            "location": "[parameters('location')]",
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[parameters('subnetId')]"
+                            },
+                            "loadBalancerBackendAddressPools": "[if(variables('needsLB'), variables('nicBackAddressPools').nicBackAddressPools, json('null'))]"
+                        }
+                    }
+                ],
+                "enableAcceleratedNetworking": "[variables('useFastNetwork')]"
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "zones": [
+                "[parameters('zonenumber')]"
+              ],
+            "name": "[concat(variables('vmprefix'), copyIndex('vmLoop', 1))]",
+            "copy": {
+                "name": "vmLoop",
+                "count": "[variables('fsvmCount')]"
+            },
+            "dependsOn": [
+                "nicLoop",
+                "[concat('Microsoft.Compute/availabilitySets/', variables('avsetprefix'))]"
+            ],
+            "apiVersion": "2018-04-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "availabilitySet": "[if(parameters('avsetrequired'), variables('availabilitySet'), json('null'))]",                   
+        
+                "hardwareProfile": {
+                    "vmSize": "[variables('fsvmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[concat(variables('vmprefix'), copyIndex('vmLoop', 1))]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminPassword": "[parameters('adminPasswordOrKey')]",
+                    "linuxConfiguration": "[if(equals(parameters('authenticationType'), 'password'), json('null'), variables('linuxConfiguration'))]"
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": "true",
+                        "storageUri": "[concat('http://',parameters('existingdiagnosticsStorageAccountName'),'.blob.core.windows.net')]"
+                    }
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('images')[parameters('osType')].publisher]",
+                        "offer": "[variables('images')[parameters('osType')].offer]",
+                        "sku": "[variables('images')[parameters('osType')].sku]",
+                        "version": "latest"
+                    },
+
+                    "osDisk": {
+                        "name": "[concat(variables('vmprefix'), copyIndex('vmLoop', 1), '-os')]",
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage",
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('storagetype')]"
+                        }
+                    },
+                    "copy": [
+                        {
+                            "name": "datadisks",
+                            "count": "[variables('fsvmDataDisks')]",
+                            "input": {
+                                "lun": "[copyIndex('dataDisks')]",
+                                "createOption": "Empty",
+                                "diskSizeGB": "[variables('fsdiskSize')]",
+                                "name": "[concat(variables('vmprefix'), copyIndex('vmLoop', 1), '-data-0', copyIndex('dataDisks', 1))]"
+                                
+                            }
+                        }
+                    ]
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('vmprefix'), '-nic0', copyIndex('vmLoop', 1)))]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(variables('vmprefix'), copyIndex('DaigLoop', 1), '/diag')]",
+            "location": "[parameters('location')]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', variables('vmprefix'), copyIndex('DaigLoop', 1))]"
+            ],
+            "copy": {
+                "name": "DaigLoop",
+                "count": "[variables('fsvmCount')]"
+            },
+
+            "tags": {
+              "displayName": "AzureDiagnostics"
+            },
+            "properties": {
+              "publisher": "Microsoft.Azure.Diagnostics",
+              "type": "IaaSDiagnostics",
+              "typeHandlerVersion": "1.5",
+              "autoUpgradeMinorVersion": true,
+              "settings": {
+                "xmlCfg": "[base64(concat(variables('wadcfgxstart'), variables('wadmetricsresourceid'), variables('vmprefix'), copyIndex('DaigLoop', 1), variables('wadcfgxend')))]",
+                "storageAccount": "[parameters('existingdiagnosticsStorageAccountName')]"
+              },
+              "protectedSettings": {
+                "storageAccountName": "[parameters('existingdiagnosticsStorageAccountName')]",
+                "storageAccountKey": "[listkeys(variables('accountid'), '2015-06-15').key1]",
+                "storageAccountEndPoint": "https://core.windows.net"
+              }
+            }
+          }
+        
+
+
+    ]
+}

@@ -1,0 +1,65 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adminUsername": {
+      "value": "dfdcadmin"
+    },
+    "adminPasswordOrKey": {
+      "value": "PLYW!w^ea9b9!ZTB"
+    },
+    "sapSystemCount": {
+      "value": 1
+    },
+    "osType": {
+      "value": "windows"
+    },
+    "subnetId": {
+      "value": "/subscriptions/3c119a75-1bd3-4cc7-8574-957878bafa86/resourceGroups/HUBVNET/providers/Microsoft.Network/virtualNetworks/HUBVNET/subnets/Subnet1"
+    },
+    "serversize": {
+      "value": "Standard_D11"
+    },
+    "diskpersystem": {
+      "value": 1
+    },
+    "servercount": {
+      "value": 1
+    },
+    "serverdisksize": {
+      "value": 128
+    },
+    "zonenumber": {
+      "value": 1
+    },
+    "storagetype": {
+      "value": "StandardSSD_LRS"
+    },
+    "companycode": {
+      "value": "dfhk"
+    },
+    "environmentcode": {
+      "value": "pd"
+    },
+    "typeCode": {
+      "value": "in"
+    },
+    "appname": {
+      "value": "addc"
+    },
+    "LBrequired": {
+      "value": false
+    },
+    "avsetrequired": {
+      "value": false
+    },
+    "existingdiagnosticsStorageAccountName": {
+      "value": "capgeminidemo"
+    },
+    "existingdiagnosticsStorageResourceGroup": {
+      "value": "HUBVNET"
+    }
+
+  }
+
+}
